@@ -1,7 +1,7 @@
 #![macro_use]
 
 use core::future::poll_fn;
-use core::sync::atomic::{compiler_fence, Ordering};
+use core::sync::atomic::{compiler_fence, AtomicU32, Ordering};
 use core::task::Poll;
 
 use embassy_embedded_hal::SetConfig;
@@ -49,6 +49,9 @@ impl Default for Config {
         }
     }
 }
+
+pub static SPISTATE: AtomicU32 = AtomicU32::new(0);
+
 
 impl<'d, T: Instance> Spim<'d, T> {
     pub fn new(
@@ -187,9 +190,15 @@ impl<'d, T: Instance> Spim<'d, T> {
         let r = T::regs();
         let s = T::state();
 
+        SPISTATE.fetch_or(1 << 12, Ordering::Relaxed);
         if r.events_end.read().bits() != 0 {
+            SPISTATE.fetch_or(1 << 13, Ordering::SeqCst);
             s.end_waker.wake();
             r.intenclr.write(|w| w.end().clear());
+            SPISTATE.fetch_or(1 << 14, Ordering::SeqCst);
+        }
+        else {
+            SPISTATE.fetch_or(1 << 15, Ordering::Relaxed);
         }
     }
 
@@ -207,6 +216,8 @@ impl<'d, T: Instance> Spim<'d, T> {
         r.txd.ptr.write(|w| unsafe { w.ptr().bits(ptr as _) });
         r.txd.maxcnt.write(|w| unsafe { w.maxcnt().bits(len as _) });
 
+        SPISTATE.fetch_or(1 << 8, Ordering::Relaxed);
+
         // Set up the DMA read.
         let (ptr, len) = slice_ptr_parts_mut(rx);
         r.rxd.ptr.write(|w| unsafe { w.ptr().bits(ptr as _) });
@@ -216,8 +227,12 @@ impl<'d, T: Instance> Spim<'d, T> {
         r.events_end.reset();
         r.intenset.write(|w| w.end().set());
 
+        SPISTATE.fetch_or(1 << 9, Ordering::Relaxed);
+
         // Start SPI transaction.
         r.tasks_start.write(|w| unsafe { w.bits(1) });
+
+        SPISTATE.fetch_or(1 << 10, Ordering::Relaxed);
 
         Ok(())
     }
@@ -249,16 +264,38 @@ impl<'d, T: Instance> Spim<'d, T> {
     async fn async_inner_from_ram(&mut self, rx: *mut [u8], tx: *const [u8]) -> Result<(), Error> {
         self.prepare(rx, tx)?;
 
+        SPISTATE.fetch_or(1 << 1, Ordering::Relaxed);
+
+        use embassy_hal_common::drop::DropBomb;
+        let bomb = DropBomb::new();
+
         // Wait for 'end' event.
         poll_fn(|cx| {
             T::state().end_waker.register(cx.waker());
             if T::regs().events_end.read().bits() != 0 {
+                if SPISTATE.load(Ordering::SeqCst) & (1 << 14) != 0 {
+                    SPISTATE.fetch_or(1 << 4, Ordering::Relaxed);
+                }
+                else {
+                    SPISTATE.fetch_or(1 << 5, Ordering::Relaxed);
+                }
                 return Poll::Ready(());
+            }
+            else {
+                if SPISTATE.load(Ordering::SeqCst) & (1 << 14) != 0 {
+                    SPISTATE.fetch_or(1 << 6, Ordering::Relaxed);
+                }
+                else {
+                    SPISTATE.fetch_or(1 << 7, Ordering::Relaxed);
+                }
             }
 
             Poll::Pending
         })
         .await;
+
+        SPISTATE.fetch_or(1 << 2, Ordering::Relaxed);
+        bomb.defuse();
 
         compiler_fence(Ordering::SeqCst);
 
@@ -340,7 +377,13 @@ impl<'d, T: Instance> Spim<'d, T> {
 
     /// Same as [`write`](Spim::write) but will fail instead of copying data into RAM. Consult the module level documentation to learn more.
     pub async fn write_from_ram(&mut self, data: &[u8]) -> Result<(), Error> {
-        self.async_inner_from_ram(&mut [], data).await
+        SPISTATE.store(1 << 0, Ordering::Relaxed);
+
+        let res = self.async_inner_from_ram(&mut [], data).await;
+
+        SPISTATE.fetch_or(1 << 16, Ordering::Relaxed);
+
+        res
     }
 }
 
