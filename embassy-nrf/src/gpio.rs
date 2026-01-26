@@ -375,7 +375,10 @@ impl<'d> Flex<'d> {
     /// Put the pin into disconnected mode.
     #[inline]
     pub fn set_as_disconnected(&mut self) {
-        self.pin.conf().write(|_| ());
+        self.pin.conf().write(|w| {
+            // Note: the "reset" state of all pins is disconnected.
+            w.set_input(vals::Input::DISCONNECT);
+        });
     }
 
     /// Get whether the pin input level is high.
@@ -448,7 +451,7 @@ impl<'d> Flex<'d> {
 
 impl<'d> Drop for Flex<'d> {
     fn drop(&mut self) {
-        self.pin.conf().write(|_| ())
+        self.set_as_disconnected();
     }
 }
 
