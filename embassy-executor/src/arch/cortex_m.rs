@@ -106,11 +106,59 @@ mod thread {
             loop {
                 unsafe {
                     self.inner.poll();
+
+                    #[cfg(not(feature = "softdevice"))]
                     asm!("wfe");
+
+                    // #[cfg(feature = "softdevice")]
+                    // sleep_softdevice();
+
+                    // This works too, and even with a high pri executor
+                    // where the other one had some trouble.
+                    // Among other things, I think it might mean the memory
+                    // protection is disabled whenever an interrupt executor
+                    // wakes up, but not the thread one. Also the SD
+                    // sd_app_evt_wait() routine could easily have other
+                    // or better workarounds... though it could mean slightly
+                    // worse performance as it's a service interrupt rather
+                    // than just a couple of "pokes". For now, this is our
+                    // only option.
+                    #[cfg(feature = "softdevice")]
+                    {
+                        use embassy_nrf::pac::{MWU, mwu::regs::Regionen};
+                        MWU.regionen().write_value(Regionen(0x0000_0000));
+                        asm!("wfe");
+                        // Including this may mean any interrupt executor
+                        // running results in this staying enabled most of
+                        // the time which defeats the purpose.
+                        // Note that the SD appears to continually re-enable
+                        // this feature anyway, so what we're doing may be
+                        // redundant, but maybe it's still a good idea to
+                        // protect us from ourselves by doing this. However,
+                        // to avoid perhaps inadvertently enabling this when
+                        // it hasn't been configured by the SD yet, we'll
+                        // leave it out for now.  Would be better to read
+                        // the value before clearing it, then restore it.
+                        // MWU.regionenset().write_value(Regionen(0x01000001));
+                    }
                 };
             }
         }
     }
+
+    // #[cfg(feature = "softdevice")]
+    // unsafe fn sleep_softdevice() {
+    //     use nrf_softdevice::{raw, Softdevice};
+    //     if Softdevice::is_enabled() {
+    //         // debug!("SD sleep");
+    //         // use embassy_nrf::pac::{MWU, mwu::regs::Regionen};
+    //         // MWU.regionen().write_value(Regionen(0x0000_0000));
+
+    //         raw::sd_app_evt_wait();
+    //     } else {
+    //         asm!("wfe");
+    //     }
+    // }
 }
 
 #[cfg(feature = "executor-interrupt")]

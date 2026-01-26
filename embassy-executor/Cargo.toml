@@ -38,6 +38,9 @@ embassy-time-driver = { version = "0.1.0", path = "../embassy-time-driver", opti
 embassy-time-queue-driver = { version = "0.1.0", path = "../embassy-time-queue-driver", optional = true }
 critical-section = "1.1"
 
+embassy-nrf = { version = "*", optional = true }
+# nrf-softdevice = { version = "*", optional = true }
+
 document-features = "0.2.7"
 
 # needed for AVR
@@ -91,6 +94,13 @@ arch-spin = ["_arch"]
 executor-thread = []
 ## Enable the interrupt-mode executor (available in Cortex-M only)
 executor-interrupt = []
+
+## Enable an alternative to WFE that works around an errata involving the
+## MWU causing high current drain (100s of uA more than normal).
+## instead, if the SD is enabled (requires modified Softdevice code too).
+## This is necessary with the S132 on 52832 to avoid high (>400uA) current drain.
+## For now there is no known issue with any other SoftDevices.
+softdevice = ["dep:embassy-nrf"]
 
 #! ### Task Arena Size
 #! Sets the [task arena](#task-arena) size. Necessary if you’re not using `nightly`.
