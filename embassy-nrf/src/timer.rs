@@ -157,6 +157,11 @@ impl<'d, T: Instance> Timer<'d, T> {
         T::regs().tasks_stop().write_value(1)
     }
 
+    /// Stops the timer.
+    pub fn shutdown(&self) {
+        T::regs().tasks_shutdown().write_value(1)
+    }
+
     /// Reset the timer's counter to 0.
     pub fn clear(&self) {
         T::regs().tasks_clear().write_value(1)
@@ -174,6 +179,13 @@ impl<'d, T: Instance> Timer<'d, T> {
     /// When triggered, this task stops the timer.
     pub fn task_stop(&self) -> Task<'d> {
         Task::from_reg(T::regs().tasks_stop())
+    }
+
+    /// Returns the SHUTDOWN task, which is deprecated, for use with PPI.
+    ///
+    /// When triggered, this task shuts down the timer.
+    pub fn task_shutdown(&self) -> Task<'d> {
+        Task::from_reg(T::regs().tasks_shutdown())
     }
 
     /// Returns the CLEAR task, for use with PPI.

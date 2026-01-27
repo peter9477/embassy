@@ -306,22 +306,34 @@ impl<'a, T: Instance> Drop for SequencePwm<'a, T> {
 
         if let Some(pin) = &self.ch0 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(0).write_value(DISCONNECTED);
         }
         if let Some(pin) = &self.ch1 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(1).write_value(DISCONNECTED);
         }
         if let Some(pin) = &self.ch2 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(2).write_value(DISCONNECTED);
         }
         if let Some(pin) = &self.ch3 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(3).write_value(DISCONNECTED);
         }
     }
@@ -869,22 +881,34 @@ impl<'a, T: Instance> Drop for SimplePwm<'a, T> {
 
         if let Some(pin) = &self.ch0 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(0).write_value(DISCONNECTED);
         }
         if let Some(pin) = &self.ch1 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(1).write_value(DISCONNECTED);
         }
         if let Some(pin) = &self.ch2 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(2).write_value(DISCONNECTED);
         }
         if let Some(pin) = &self.ch3 {
             pin.set_low();
-            pin.conf().write(|_| ());
+            // pin.conf().write(|_| ());
+            pin.conf().write(|w| {
+                w.set_input(gpiovals::Input::DISCONNECT);
+            });
             r.psel().out(3).write_value(DISCONNECTED);
         }
     }
