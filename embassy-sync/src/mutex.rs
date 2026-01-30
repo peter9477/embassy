@@ -65,6 +65,13 @@ where
     }
 }
 
+
+use core::sync::atomic::{AtomicU32, Ordering};
+static MTXID: AtomicU32 = AtomicU32::new(0);
+pub fn set_mtxid(id: u32) {
+    MTXID.store(id, Ordering::Relaxed);
+}
+
 impl<M, T> Mutex<M, T>
 where
     M: RawMutex,
@@ -74,9 +81,21 @@ where
     ///
     /// This will wait for the mutex to be unlocked if it's already locked.
     pub async fn lock(&self) -> MutexGuard<'_, M, T> {
+        self.lockid(0).await
+    }
+
+    pub async fn lockid(&self, id: u32) -> MutexGuard<'_, M, T> {
         poll_fn(|cx| {
             let ready = self.state.lock(|s| {
-                let mut s = s.borrow_mut();
+                MTXID.store(id, Ordering::Relaxed);
+                let mut s = match s.try_borrow_mut() {
+                    Ok(b) => b,
+                    Err(_) => {
+                        panic!("mutex {}", MTXID.load(Ordering::Relaxed));
+                    }
+                };
+                // let mut s = s.borrow_mut();
+
                 if s.locked {
                     s.waker.register(cx.waker());
                     false
